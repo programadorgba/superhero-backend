@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const superhero = require('../controllers/superhero.controller.js');
+// Si tu archivo en la carpeta controllers empieza con Mayúscula, cámbialo aquí también
+const superheroController = require('../controllers/superhero.controller'); 
+
+router.get('/all', (req, res) => {
+    // Tu lógica o llamada al controlador
+    res.json({ message: "Ruta all funcionando" });
+});
 
 /* =========================
    📋 RUTAS SUPERHERO
