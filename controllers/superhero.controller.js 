@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const { SUPERHERO_BASE_URL } = require('../config/env');
+const { SUPERHERO_BASE_URL } = require('../config/env.js');
 
 /* =========================
    🔧 FUNCIÓN AUXILIAR
