@@ -4,7 +4,7 @@ const { PORT } = require('./config/env');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 
 // Rutas
-//const superheroRoutes = require('./routes/superhero.routes');
+
 const superheroRoutes = require('./routes/superhero.routes.js');
 const app = express();
 
@@ -34,10 +34,11 @@ app.use(errorHandler);
 /* =========================
    🚀 INICIAR SERVIDOR
 ========================== */
-app.listen(PORT, () => {
-  console.log(`🚀 Backend iniciado en: http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Backend iniciado en puerto: ${PORT}`);
   console.log(`📋 Rutas disponibles:`);
   console.log(`   GET /api/health`);
+  console.log(`   GET /api/superhero/all`);
   console.log(`   GET /api/superhero/search/:name`);
   console.log(`   GET /api/superhero/character/:id`);
   console.log(`   GET /api/superhero/character/:id/powerstats`);
