@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const superhero = require('../controllers/superhero.controller.js ');
+const superhero = require('../controllers/superhero.controller.js');
 
 /* =========================
    📋 RUTAS SUPERHERO
