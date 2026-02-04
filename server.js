@@ -35,5 +35,5 @@ app.use(errorHandler);
    🚀 INICIAR SERVIDOR
 ========================== */
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Backend iniciado en puerto: ${PORT}`);
+  console.log(`🚀 Backend iniciado en puerto: ${PORT}`);
 });
