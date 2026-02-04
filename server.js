@@ -34,17 +34,8 @@ app.use(errorHandler);
 /* =========================
    🚀 INICIAR SERVIDOR
 ========================== */
+const PORT = process.env.PORT || 10000; 
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Backend iniciado en puerto: ${PORT}`);
-  console.log(`📋 Rutas disponibles:`);
-  console.log(`   GET /api/health`);
-  console.log(`   GET /api/superhero/all`);
-  console.log(`   GET /api/superhero/search/:name`);
-  console.log(`   GET /api/superhero/character/:id`);
-  console.log(`   GET /api/superhero/character/:id/powerstats`);
-  console.log(`   GET /api/superhero/character/:id/biography`);
-  console.log(`   GET /api/superhero/character/:id/appearance`);
-  console.log(`   GET /api/superhero/character/:id/work`);
-  console.log(`   GET /api/superhero/character/:id/connections`);
-  console.log(`   GET /api/superhero/character/:id/image`);
+    console.log(`🚀 Backend iniciado en puerto: ${PORT}`);
 });
