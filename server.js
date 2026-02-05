@@ -5,7 +5,14 @@ const { errorHandler, notFound } = require('./middleware/errorHandler');
 const superheroRoutes = require('./routes/superhero.routes.js');
 
 const app = express();
-app.use(cors());
+
+// ✅ CORS MÁS PERMISIVO
+app.use(cors({
+  origin: '*', // Permitir TODAS las origins temporalmente
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
 
 console.log('🚀 Puerto configurado:', PORT);
