@@ -75,7 +75,7 @@ async function searchByName(req, res) {
     }
 
     // Devolver lista con datos básicos
-    const characters = data.characters.map(char => ({
+    const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
       image: char.image.url,
