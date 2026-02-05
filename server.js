@@ -8,25 +8,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// DEBUG: Ver puerto real
 console.log('🚀 Puerto configurado:', PORT);
 console.log('🔧 Tipo de PORT:', typeof PORT);
 
 /* =========================
-   ⚙️ CONFIGURACIÓN
-========================== 
-app.use(cors());
-app.use(express.json());*/
-
-/* =========================
    🛣️ RUTAS
 ========================== */
-// Ruta de prueba
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: '✅ Backend Fandom Explorer funcionando' });
 });
 
-// Superhero
 app.use('/api/superhero', superheroRoutes);
 
 /* =========================
