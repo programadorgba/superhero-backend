@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const { SUPERHERO_BASE_URL } = require('../config/env.js');
+const { SUPERHERO_BASE_URL } = require('../config/env');
 
 /* =========================
    🔧 FUNCIÓN AUXILIAR
@@ -75,7 +75,7 @@ async function searchByName(req, res) {
     }
 
     // Devolver lista con datos básicos
-    const characters = data.results.map(char => ({
+    const characters = data.characters.map(char => ({
       id: char.id,
       name: char.name,
       image: char.image.url,
@@ -92,26 +92,70 @@ async function searchByName(req, res) {
 /* =========================
    👤 PERSONAJE POR ID (completo)
    Trae TODA la información
-========================== */async function getCharacterById(req, res) {
+========================== */
+async function getCharacterById(req, res) {
   try {
     const { id } = req.params;
     console.log('👤 Cargando personaje:', id);
 
-    const data = await fetchSuperhero(id);
+    // Llamadas en paralelo para ser rápido
+    const [
+      fullData,
+      powerstats,
+      biography,
+      appearance,
+      work,
+      connections
+    ] = await Promise.all([
+      fetchSuperhero(id),
+      fetchSuperhero(`${id}/powerstats`),
+      fetchSuperhero(`${id}/biography`),
+      fetchSuperhero(`${id}/appearance`),
+      fetchSuperhero(`${id}/work`),
+      fetchSuperhero(`${id}/connections`)
+    ]);
 
-    if (data.response === 'error') {
-      return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
-    }
-
+    // Combinar todo en un solo objeto limpio
     const character = {
-      id: data.id,
-      name: data.name,
-      image: data.image.url,
-      powerstats: data.powerstats,
-      biography: data.biography,
-      appearance: data.appearance,
-      work: data.work,
-      connections: data.connections
+      id: fullData.id,
+      name: fullData.name,
+      image: fullData.image.url,
+
+      powerstats: {
+        intelligence: powerstats.powerstats.intelligence,
+        strength: powerstats.powerstats.strength,
+        speed: powerstats.powerstats.speed,
+        durability: powerstats.powerstats.durability,
+        power: powerstats.powerstats.power,
+        combat: powerstats.powerstats.combat
+      },
+
+      biography: {
+        realName: biography.biography['real name'],
+        aliases: biography.biography.aliases,
+        placeOfBirth: biography.biography['place of birth'],
+        firstAppearance: biography.biography['first appearance'],
+        publisher: biography.biography.publisher,
+        alignment: biography.biography.alignment
+      },
+
+      appearance: {
+        gender: appearance.appearance.gender,
+        race: appearance.appearance.race,
+        height: appearance.appearance.height,
+        weight: appearance.appearance.weight,
+        eyeColor: appearance.appearance['eye color'],
+        hairColor: appearance.appearance['hair color']
+      },
+
+      work: {
+        occupation: work.work.occupation,
+        base: work.work.base
+      },
+
+      connections: {
+        connectedTo: connections.connections['connected to']
+      }
     };
 
     res.json({ success: true, data: character });

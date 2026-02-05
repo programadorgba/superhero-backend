@@ -1,23 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const superheroController = require('../controllers/superhero.controller.js'); 
-
-router.get('/all', (req, res) => {
-    res.json({ message: "Ruta all funcionando" });
-});
-
-router.get('/all', (req, res) => {
-    // Tu lógica o llamada al controlador
-    res.json({ message: "Ruta all funcionando" });
-});
+const superhero = require('../controllers/superherocontroller.js');
 
 /* =========================
    📋 RUTAS SUPERHERO
 ========================== */
-
-// 📋 Obtener TODOS los personajes (A-Z)
-// GET /api/superhero/all
-router.get('/all', superhero.getAllCharacters);
 
 // 🔍 Buscar por nombre
 // GET /api/superhero/search/:name
