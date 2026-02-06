@@ -2,9 +2,14 @@ const fetch = require('node-fetch');
 const { SUPERHERO_BASE_URL } = require('../config/env');
 
 /* =========================
-   🔧 FUNCIÓN AUXILIAR
-   Hace la petición a Superhero API
+   🔧 FUNCIÓN AUXILIAR MEJORADA
 ========================== */
+// Solo añadimos esta función para que las imágenes no se bloqueen
+function cleanImageUrl(url) {
+  if (!url) return '';
+  return `https://images.weserv.nl/?url=${url.replace('https://', '').replace('http://', '')}`;
+}
+
 async function fetchSuperhero(endpoint) {
   try {
     const res = await fetch(`${SUPERHERO_BASE_URL}/${endpoint}`);
@@ -23,16 +28,13 @@ async function fetchSuperhero(endpoint) {
 async function getAllCharacters(req, res) {
   try {
     console.log('📋 Obteniendo todos los personajes A-Z...');
-    
     const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
     const allCharacters = [];
     const seenIds = new Set();
 
-    // Búsquedas en paralelo por letra
     const promises = letters.map(letter => fetchSuperhero(`search/${letter}`));
     const results = await Promise.all(promises);
 
-    // Combinar resultados y eliminar duplicados
     results.forEach(data => {
       if (data.response === 'success' && data.results) {
         data.results.forEach(char => {
@@ -41,7 +43,8 @@ async function getAllCharacters(req, res) {
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: char.image.url,
+              // CAMBIO AQUÍ: Usamos cleanImageUrl
+              image: cleanImageUrl(char.image.url),
               publisher: char.biography.publisher,
               alignment: char.biography.alignment
             });
@@ -50,9 +53,7 @@ async function getAllCharacters(req, res) {
       }
     });
 
-    // Ordenar alfabéticamente
     allCharacters.sort((a, b) => a.name.localeCompare(b.name));
-
     console.log(`✅ Total personajes encontrados: ${allCharacters.length}`);
     res.json({ success: true, total: allCharacters.length, data: allCharacters });
   } catch (error) {
@@ -68,17 +69,17 @@ async function searchByName(req, res) {
     const { name } = req.params;
     console.log('🔍 Buscando:', name);
 
-    const data = await fetchSuperhero(`search/${name}`);
+    const data = await fetchSuperhero(`search/${name.trim()}`);
 
     if (data.response === 'error') {
       return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
     }
 
-    // Devolver lista con datos básicos
     const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: char.image.url,
+      // CAMBIO AQUÍ: Usamos cleanImageUrl
+      image: cleanImageUrl(char.image.url),
       publisher: char.biography.publisher,
       alignment: char.biography.alignment
     }));
@@ -91,22 +92,13 @@ async function searchByName(req, res) {
 
 /* =========================
    👤 PERSONAJE POR ID (completo)
-   Trae TODA la información
 ========================== */
 async function getCharacterById(req, res) {
   try {
     const { id } = req.params;
     console.log('👤 Cargando personaje:', id);
 
-    // Llamadas en paralelo para ser rápido
-    const [
-      fullData,
-      powerstats,
-      biography,
-      appearance,
-      work,
-      connections
-    ] = await Promise.all([
+    const [fullData, powerstats, biography, appearance, work, connections] = await Promise.all([
       fetchSuperhero(id),
       fetchSuperhero(`${id}/powerstats`),
       fetchSuperhero(`${id}/biography`),
@@ -115,21 +107,13 @@ async function getCharacterById(req, res) {
       fetchSuperhero(`${id}/connections`)
     ]);
 
-    // Combinar todo en un solo objeto limpio
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: fullData.image.url,
+      // CAMBIO AQUÍ: Usamos cleanImageUrl
+      image: cleanImageUrl(fullData.image.url),
 
-      powerstats: {
-        intelligence: powerstats.powerstats.intelligence,
-        strength: powerstats.powerstats.strength,
-        speed: powerstats.powerstats.speed,
-        durability: powerstats.powerstats.durability,
-        power: powerstats.powerstats.power,
-        combat: powerstats.powerstats.combat
-      },
-
+      powerstats: powerstats.powerstats,
       biography: {
         realName: biography.biography['real name'],
         aliases: biography.biography.aliases,
@@ -138,24 +122,9 @@ async function getCharacterById(req, res) {
         publisher: biography.biography.publisher,
         alignment: biography.biography.alignment
       },
-
-      appearance: {
-        gender: appearance.appearance.gender,
-        race: appearance.appearance.race,
-        height: appearance.appearance.height,
-        weight: appearance.appearance.weight,
-        eyeColor: appearance.appearance['eye color'],
-        hairColor: appearance.appearance['hair color']
-      },
-
-      work: {
-        occupation: work.work.occupation,
-        base: work.work.base
-      },
-
-      connections: {
-        connectedTo: connections.connections['connected to']
-      }
+      appearance: appearance.appearance,
+      work: work.work,
+      connections: connections.connections
     };
 
     res.json({ success: true, data: character });
@@ -164,88 +133,54 @@ async function getCharacterById(req, res) {
   }
 }
 
-/* =========================
-   📊 SOLO POWERSTATS
-========================== */
+/* ============ LAS DEMÁS FUNCIONES SE QUEDAN IGUAL ============ */
 async function getPowerstats(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/powerstats`);
-
     res.json({ success: true, data: data.powerstats });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
-/* =========================
-   📖 SOLO BIOGRAFÍA
-========================== */
 async function getBiography(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/biography`);
-
     res.json({ success: true, data: data.biography });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
-/* =========================
-   👁️ SOLO APARIENCIA
-========================== */
 async function getAppearance(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/appearance`);
-
     res.json({ success: true, data: data.appearance });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
-/* =========================
-   💼 SOLO TRABAJO
-========================== */
 async function getWork(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/work`);
-
     res.json({ success: true, data: data.work });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
-/* =========================
-   🔗 SOLO CONEXIONES
-========================== */
 async function getConnections(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/connections`);
-
     res.json({ success: true, data: data.connections });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
-/* =========================
-   🖼️ SOLO IMAGEN
-========================== */
 async function getImage(req, res) {
   try {
     const { id } = req.params;
     const data = await fetchSuperhero(`${id}/image`);
-
-    res.json({ success: true, data: data.image });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    // CAMBIO AQUÍ: También limpiamos la imagen suelta
+    res.json({ success: true, data: cleanImageUrl(data.url) });
+  } catch (error) { res.status(500).json({ success: false, error: error.message }); }
 }
 
 module.exports = {
