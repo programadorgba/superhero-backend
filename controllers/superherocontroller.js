@@ -44,7 +44,7 @@ async function getAllCharacters(req, res) {
               id: char.id,
               name: char.name,
               // CAMBIO AQUÍ: Usamos cleanImageUrl
-              image: cleanImageUrl(char.image.url),
+              image: `https://images.weserv.nl/?url=${char.image.url.replace('https://', '')}`,
               publisher: char.biography.publisher,
               alignment: char.biography.alignment
             });
