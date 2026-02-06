@@ -6,6 +6,10 @@ const superhero = require('../controllers/superherocontroller.js');
    📋 RUTAS SUPERHERO
 ========================== */
 
+// 📋 Todos los personajes (A-Z)
+// GET /api/superhero/characters
+router.get('/characters', superhero.getAllCharacters);
+
 // 🔍 Buscar por nombre
 // GET /api/superhero/search/:name
 router.get('/search/:name', superhero.searchByName);

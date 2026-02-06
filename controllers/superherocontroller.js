@@ -41,7 +41,7 @@ async function getAllCharacters(req, res) {
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
+              image: char.image.url,
               publisher: char.biography.publisher,
               alignment: char.biography.alignment
             });
@@ -74,17 +74,18 @@ async function searchByName(req, res) {
       return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
     }
 
-    // Devolver lista con datos básicos
+    // Mapear con validación (?.  evita errores si algo es null/undefined)
     const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/${id}.jpg`,
-      publisher: char.biography.publisher,
-      alignment: char.biography.alignment
+      image: char.image?.url || '',  // ← CAMBIA ESTO
+      publisher: char.biography?.publisher || 'Unknown',  // ← Y ESTO
+      alignment: char.biography?.alignment || 'neutral'   // ← Y ESTO
     }));
 
     res.json({ success: true, data: characters });
   } catch (error) {
+    console.error('❌ Error en searchByName:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -115,46 +116,55 @@ async function getCharacterById(req, res) {
       fetchSuperhero(`${id}/connections`)
     ]);
 
+    // Validar respuesta principal
+    if (!fullData || fullData.response === 'error') {
+      console.warn('⚠️ Personaje no encontrado en Superhero API:', fullData?.error);
+      return res.status(404).json({
+        success: false,
+        error: fullData?.error || 'Personaje no encontrado'
+      });
+    }
+
     // Combinar todo en un solo objeto limpio
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: fullData.image.url,
+      image: fullData.image?.url || '',
 
       powerstats: {
-        intelligence: powerstats.powerstats.intelligence,
-        strength: powerstats.powerstats.strength,
-        speed: powerstats.powerstats.speed,
-        durability: powerstats.powerstats.durability,
-        power: powerstats.powerstats.power,
-        combat: powerstats.powerstats.combat
+        intelligence: powerstats.powerstats?.intelligence,
+        strength: powerstats.powerstats?.strength,
+        speed: powerstats.powerstats?.speed,
+        durability: powerstats.powerstats?.durability,
+        power: powerstats.powerstats?.power,
+        combat: powerstats.powerstats?.combat
       },
 
       biography: {
-        realName: biography.biography['real name'],
-        aliases: biography.biography.aliases,
-        placeOfBirth: biography.biography['place of birth'],
-        firstAppearance: biography.biography['first appearance'],
-        publisher: biography.biography.publisher,
-        alignment: biography.biography.alignment
+        realName: biography.biography?.['real name'],
+        aliases: biography.biography?.aliases,
+        placeOfBirth: biography.biography?.['place of birth'],
+        firstAppearance: biography.biography?.['first appearance'],
+        publisher: biography.biography?.publisher,
+        alignment: biography.biography?.alignment
       },
 
       appearance: {
-        gender: appearance.appearance.gender,
-        race: appearance.appearance.race,
-        height: appearance.appearance.height,
-        weight: appearance.appearance.weight,
-        eyeColor: appearance.appearance['eye color'],
-        hairColor: appearance.appearance['hair color']
+        gender: appearance.appearance?.gender,
+        race: appearance.appearance?.race,
+        height: appearance.appearance?.height,
+        weight: appearance.appearance?.weight,
+        eyeColor: appearance.appearance?.['eye color'],
+        hairColor: appearance.appearance?.['hair color']
       },
 
       work: {
-        occupation: work.work.occupation,
-        base: work.work.base
+        occupation: work.work?.occupation,
+        base: work.work?.base
       },
 
       connections: {
-        connectedTo: connections.connections['connected to']
+        connectedTo: connections.connections?.['connected to']
       }
     };
 
