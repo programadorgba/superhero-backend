@@ -41,7 +41,7 @@ async function getAllCharacters(req, res) {
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: char.image.url,
+              image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
               publisher: char.biography.publisher,
               alignment: char.biography.alignment
             });
@@ -78,7 +78,7 @@ async function searchByName(req, res) {
     const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: char.image.url,
+      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/lg/${id}.jpg`,
       publisher: char.biography.publisher,
       alignment: char.biography.alignment
     }));
