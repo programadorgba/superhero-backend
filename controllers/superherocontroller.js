@@ -41,7 +41,7 @@ async function getAllCharacters(req, res) {
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: char.image?.url || '',
+              image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
               publisher: char.biography?.publisher || 'Unknown',
               alignment: char.biography?.alignment || 'neutral'
             });
@@ -74,11 +74,11 @@ async function searchByName(req, res) {
       return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
     }
 
-    // Mapear con validación
+    // Mapear con validación - USANDO CDN PARA IMÁGENES
     const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: char.image?.url || '',
+      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
       publisher: char.biography?.publisher || 'Unknown',
       alignment: char.biography?.alignment || 'neutral'
     }));
@@ -99,7 +99,7 @@ async function getCharacterById(req, res) {
     const { id } = req.params;
     console.log('👤 Cargando personaje:', id);
 
-    // UNA SOLA llamada - la API devuelve TODO
+    // UNA sola llamada - la API devuelve TODO
     const fullData = await fetchSuperhero(id);
 
     // Validar respuesta principal
@@ -111,11 +111,11 @@ async function getCharacterById(req, res) {
       });
     }
 
-    // Combinar todo en un solo objeto limpio
+    // Combinar todo en un solo objeto limpio - USANDO CDN PARA IMAGEN
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: fullData.image?.url || '',
+      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${fullData.id}.jpg`,
 
       powerstats: {
         intelligence: fullData.powerstats?.intelligence || 'null',

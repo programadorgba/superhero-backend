@@ -6,6 +6,10 @@ const superhero = require('../controllers/superherocontroller.js');
    📋 RUTAS SUPERHERO
 ========================== */
 
+// 🖼️ Proxy para imágenes (evita CORS) - DEBE IR PRIMERO
+// GET /api/superhero/image-proxy?url=...
+router.get('/image-proxy', superhero.getImageProxy);
+
 // 📋 Todos los personajes (A-Z)
 // GET /api/superhero/characters
 router.get('/characters', superhero.getAllCharacters);
