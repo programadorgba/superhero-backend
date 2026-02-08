@@ -1,5 +1,5 @@
-const fetch = require('node-fetch');
-const { SUPERHERO_BASE_URL } = require('../config/env');
+const fetch = require("node-fetch");
+const { SUPERHERO_BASE_URL } = require("../config/env");
 
 /* =========================
    🔧 FUNCIÓN AUXILIAR
@@ -12,7 +12,7 @@ async function fetchSuperhero(endpoint) {
     const data = await res.json();
     return data;
   } catch (error) {
-    console.error('❌ Error fetch Superhero:', error.message);
+    console.error("❌ Error fetch Superhero:", error.message);
     throw error;
   }
 }
@@ -22,28 +22,30 @@ async function fetchSuperhero(endpoint) {
 ========================== */
 async function getAllCharacters(req, res) {
   try {
-    console.log('📋 Obteniendo todos los personajes A-Z...');
-    
-    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+    console.log("📋 Obteniendo todos los personajes A-Z...");
+
+    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
     const allCharacters = [];
     const seenIds = new Set();
 
     // Búsquedas en paralelo por letra
-    const promises = letters.map(letter => fetchSuperhero(`search/${letter}`));
+    const promises = letters.map((letter) =>
+      fetchSuperhero(`search/${letter}`),
+    );
     const results = await Promise.all(promises);
 
     // Combinar resultados y eliminar duplicados
-    results.forEach(data => {
-      if (data.response === 'success' && data.results) {
-        data.results.forEach(char => {
+    results.forEach((data) => {
+      if (data.response === "success" && data.results) {
+        data.results.forEach((char) => {
           if (!seenIds.has(char.id)) {
             seenIds.add(char.id);
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: char.image.url,
-              publisher: char.biography.publisher,
-              alignment: char.biography.alignment
+              image: char.image?.url || "",
+              publisher: char.biography?.publisher || "Unknown",
+              alignment: char.biography?.alignment || "neutral",
             });
           }
         });
@@ -54,7 +56,11 @@ async function getAllCharacters(req, res) {
     allCharacters.sort((a, b) => a.name.localeCompare(b.name));
 
     console.log(`✅ Total personajes encontrados: ${allCharacters.length}`);
-    res.json({ success: true, total: allCharacters.length, data: allCharacters });
+    res.json({
+      success: true,
+      total: allCharacters.length,
+      data: allCharacters,
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -66,26 +72,28 @@ async function getAllCharacters(req, res) {
 async function searchByName(req, res) {
   try {
     const { name } = req.params;
-    console.log('🔍 Buscando:', name);
+    console.log("🔍 Buscando:", name);
 
     const data = await fetchSuperhero(`search/${name}`);
 
-    if (data.response === 'error') {
-      return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
+    if (data.response === "error") {
+      return res
+        .status(404)
+        .json({ success: false, error: "Personaje no encontrado" });
     }
 
-    // Mapear con validación (?.  evita errores si algo es null/undefined)
-    const characters = data.results.map(char => ({
+    // Mapear con validación
+    const characters = data.results.map((char) => ({
       id: char.id,
       name: char.name,
-      image: char.image?.url || '',  // ← CAMBIA ESTO
-      publisher: char.biography?.publisher || 'Unknown',  // ← Y ESTO
-      alignment: char.biography?.alignment || 'neutral'   // ← Y ESTO
+      image: char.image?.url || "",
+      publisher: char.biography?.publisher || "Unknown",
+      alignment: char.biography?.alignment || "neutral",
     }));
 
     res.json({ success: true, data: characters });
   } catch (error) {
-    console.error('❌ Error en searchByName:', error);
+    console.error("❌ Error en searchByName:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -97,31 +105,20 @@ async function searchByName(req, res) {
 async function getCharacterById(req, res) {
   try {
     const { id } = req.params;
-    console.log('👤 Cargando personaje:', id);
+    console.log("👤 Cargando personaje:", id);
 
-    // Llamadas en paralelo para ser rápido
-    const [
-      fullData,
-      powerstats,
-      biography,
-      appearance,
-      work,
-      connections
-    ] = await Promise.all([
-      fetchSuperhero(id),
-      fetchSuperhero(`${id}/powerstats`),
-      fetchSuperhero(`${id}/biography`),
-      fetchSuperhero(`${id}/appearance`),
-      fetchSuperhero(`${id}/work`),
-      fetchSuperhero(`${id}/connections`)
-    ]);
+    // UNA SOLA llamada - la API devuelve TODO
+    const fullData = await fetchSuperhero(id);
 
     // Validar respuesta principal
-    if (!fullData || fullData.response === 'error') {
-      console.warn('⚠️ Personaje no encontrado en Superhero API:', fullData?.error);
+    if (!fullData || fullData.response === "error") {
+      console.warn(
+        "⚠️ Personaje no encontrado en Superhero API:",
+        fullData?.error,
+      );
       return res.status(404).json({
         success: false,
-        error: fullData?.error || 'Personaje no encontrado'
+        error: fullData?.error || "Personaje no encontrado",
       });
     }
 
@@ -129,47 +126,49 @@ async function getCharacterById(req, res) {
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: fullData.image?.url || '',
+      image: fullData.image?.url || "",
 
       powerstats: {
-        intelligence: powerstats.powerstats?.intelligence,
-        strength: powerstats.powerstats?.strength,
-        speed: powerstats.powerstats?.speed,
-        durability: powerstats.powerstats?.durability,
-        power: powerstats.powerstats?.power,
-        combat: powerstats.powerstats?.combat
+        intelligence: fullData.powerstats?.intelligence || "null",
+        strength: fullData.powerstats?.strength || "null",
+        speed: fullData.powerstats?.speed || "null",
+        durability: fullData.powerstats?.durability || "null",
+        power: fullData.powerstats?.power || "null",
+        combat: fullData.powerstats?.combat || "null",
       },
 
       biography: {
-        realName: biography.biography?.['real name'],
-        aliases: biography.biography?.aliases,
-        placeOfBirth: biography.biography?.['place of birth'],
-        firstAppearance: biography.biography?.['first appearance'],
-        publisher: biography.biography?.publisher,
-        alignment: biography.biography?.alignment
+        realName: fullData.biography?.["full-name"] || "",
+        aliases: fullData.biography?.aliases || [],
+        placeOfBirth: fullData.biography?.["place-of-birth"] || "-",
+        firstAppearance: fullData.biography?.["first-appearance"] || "-",
+        publisher: fullData.biography?.publisher || "Unknown",
+        alignment: fullData.biography?.alignment || "neutral",
       },
 
       appearance: {
-        gender: appearance.appearance?.gender,
-        race: appearance.appearance?.race,
-        height: appearance.appearance?.height,
-        weight: appearance.appearance?.weight,
-        eyeColor: appearance.appearance?.['eye color'],
-        hairColor: appearance.appearance?.['hair color']
+        gender: fullData.appearance?.gender || "-",
+        race: fullData.appearance?.race || "-",
+        height: fullData.appearance?.height || ["-"],
+        weight: fullData.appearance?.weight || ["-"],
+        eyeColor: fullData.appearance?.["eye-color"] || "-",
+        hairColor: fullData.appearance?.["hair-color"] || "-",
       },
 
       work: {
-        occupation: work.work?.occupation,
-        base: work.work?.base
+        occupation: fullData.work?.occupation || "-",
+        base: fullData.work?.base || "-",
       },
 
       connections: {
-        connectedTo: connections.connections?.['connected to']
-      }
+        connectedTo: fullData.connections?.["group-affiliation"] || "-",
+        relatives: fullData.connections?.relatives || "-",
+      },
     };
 
     res.json({ success: true, data: character });
   } catch (error) {
+    console.error("❌ Error en getCharacterById:", error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -180,7 +179,7 @@ async function getCharacterById(req, res) {
 async function getPowerstats(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/powerstats`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.powerstats });
   } catch (error) {
@@ -194,7 +193,7 @@ async function getPowerstats(req, res) {
 async function getBiography(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/biography`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.biography });
   } catch (error) {
@@ -208,7 +207,7 @@ async function getBiography(req, res) {
 async function getAppearance(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/appearance`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.appearance });
   } catch (error) {
@@ -222,7 +221,7 @@ async function getAppearance(req, res) {
 async function getWork(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/work`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.work });
   } catch (error) {
@@ -236,7 +235,7 @@ async function getWork(req, res) {
 async function getConnections(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/connections`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.connections });
   } catch (error) {
@@ -250,7 +249,7 @@ async function getConnections(req, res) {
 async function getImage(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(`${id}/image`);
+    const data = await fetchSuperhero(id);
 
     res.json({ success: true, data: data.image });
   } catch (error) {
@@ -267,5 +266,5 @@ module.exports = {
   getAppearance,
   getWork,
   getConnections,
-  getImage
+  getImage,
 };
