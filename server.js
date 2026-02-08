@@ -3,6 +3,7 @@ const cors = require('cors');
 const { PORT } = require('./config/env');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
 const superheroRoutes = require('./routes/superhero.routes.js');
+const comicvineRoutes = require('./routes/comicvineRoutes.js');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/superhero', superheroRoutes);
+app.use('/api/comicvine', comicvineRoutes);
 
 /* =========================
    ❌ MANEJO DE ERRORES
@@ -39,4 +41,7 @@ app.use(errorHandler);
 const portNumber = Number(PORT) || 3000;
 app.listen(portNumber, '0.0.0.0', () => {
   console.log(`🚀 Backend iniciado en puerto: ${portNumber}`);
+  console.log(`📡 Rutas disponibles:`);
+  console.log(`   - /api/superhero`);
+  console.log(`   - /api/comicvine`);
 });
