@@ -1,5 +1,5 @@
-const fetch = require("node-fetch");
-const { SUPERHERO_BASE_URL } = require("../config/env");
+const fetch = require('node-fetch');
+const { SUPERHERO_BASE_URL } = require('../config/env');
 
 /* =========================
    🔧 FUNCIÓN AUXILIAR
@@ -12,7 +12,7 @@ async function fetchSuperhero(endpoint) {
     const data = await res.json();
     return data;
   } catch (error) {
-    console.error("❌ Error fetch Superhero:", error.message);
+    console.error('❌ Error fetch Superhero:', error.message);
     throw error;
   }
 }
@@ -22,30 +22,28 @@ async function fetchSuperhero(endpoint) {
 ========================== */
 async function getAllCharacters(req, res) {
   try {
-    console.log("📋 Obteniendo todos los personajes A-Z...");
-
-    const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+    console.log('📋 Obteniendo todos los personajes A-Z...');
+    
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
     const allCharacters = [];
     const seenIds = new Set();
 
     // Búsquedas en paralelo por letra
-    const promises = letters.map((letter) =>
-      fetchSuperhero(`search/${letter}`),
-    );
+    const promises = letters.map(letter => fetchSuperhero(`search/${letter}`));
     const results = await Promise.all(promises);
 
     // Combinar resultados y eliminar duplicados
-    results.forEach((data) => {
-      if (data.response === "success" && data.results) {
-        data.results.forEach((char) => {
+    results.forEach(data => {
+      if (data.response === 'success' && data.results) {
+        data.results.forEach(char => {
           if (!seenIds.has(char.id)) {
             seenIds.add(char.id);
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: char.image?.url || "",
-              publisher: char.biography?.publisher || "Unknown",
-              alignment: char.biography?.alignment || "neutral",
+              image: char.image?.url || '',
+              publisher: char.biography?.publisher || 'Unknown',
+              alignment: char.biography?.alignment || 'neutral'
             });
           }
         });
@@ -56,11 +54,7 @@ async function getAllCharacters(req, res) {
     allCharacters.sort((a, b) => a.name.localeCompare(b.name));
 
     console.log(`✅ Total personajes encontrados: ${allCharacters.length}`);
-    res.json({
-      success: true,
-      total: allCharacters.length,
-      data: allCharacters,
-    });
+    res.json({ success: true, total: allCharacters.length, data: allCharacters });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -72,28 +66,26 @@ async function getAllCharacters(req, res) {
 async function searchByName(req, res) {
   try {
     const { name } = req.params;
-    console.log("🔍 Buscando:", name);
+    console.log('🔍 Buscando:', name);
 
     const data = await fetchSuperhero(`search/${name}`);
 
-    if (data.response === "error") {
-      return res
-        .status(404)
-        .json({ success: false, error: "Personaje no encontrado" });
+    if (data.response === 'error') {
+      return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
     }
 
     // Mapear con validación
-    const characters = data.results.map((char) => ({
+    const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: char.image?.url || "",
-      publisher: char.biography?.publisher || "Unknown",
-      alignment: char.biography?.alignment || "neutral",
+      image: char.image?.url || '',
+      publisher: char.biography?.publisher || 'Unknown',
+      alignment: char.biography?.alignment || 'neutral'
     }));
 
     res.json({ success: true, data: characters });
   } catch (error) {
-    console.error("❌ Error en searchByName:", error);
+    console.error('❌ Error en searchByName:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -105,20 +97,17 @@ async function searchByName(req, res) {
 async function getCharacterById(req, res) {
   try {
     const { id } = req.params;
-    console.log("👤 Cargando personaje:", id);
+    console.log('👤 Cargando personaje:', id);
 
     // UNA SOLA llamada - la API devuelve TODO
     const fullData = await fetchSuperhero(id);
 
     // Validar respuesta principal
-    if (!fullData || fullData.response === "error") {
-      console.warn(
-        "⚠️ Personaje no encontrado en Superhero API:",
-        fullData?.error,
-      );
+    if (!fullData || fullData.response === 'error') {
+      console.warn('⚠️ Personaje no encontrado en Superhero API:', fullData?.error);
       return res.status(404).json({
         success: false,
-        error: fullData?.error || "Personaje no encontrado",
+        error: fullData?.error || 'Personaje no encontrado'
       });
     }
 
@@ -126,49 +115,49 @@ async function getCharacterById(req, res) {
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: fullData.image?.url || "",
+      image: fullData.image?.url || '',
 
       powerstats: {
-        intelligence: fullData.powerstats?.intelligence || "null",
-        strength: fullData.powerstats?.strength || "null",
-        speed: fullData.powerstats?.speed || "null",
-        durability: fullData.powerstats?.durability || "null",
-        power: fullData.powerstats?.power || "null",
-        combat: fullData.powerstats?.combat || "null",
+        intelligence: fullData.powerstats?.intelligence || 'null',
+        strength: fullData.powerstats?.strength || 'null',
+        speed: fullData.powerstats?.speed || 'null',
+        durability: fullData.powerstats?.durability || 'null',
+        power: fullData.powerstats?.power || 'null',
+        combat: fullData.powerstats?.combat || 'null'
       },
 
       biography: {
-        realName: fullData.biography?.["full-name"] || "",
+        realName: fullData.biography?.['full-name'] || '',
         aliases: fullData.biography?.aliases || [],
-        placeOfBirth: fullData.biography?.["place-of-birth"] || "-",
-        firstAppearance: fullData.biography?.["first-appearance"] || "-",
-        publisher: fullData.biography?.publisher || "Unknown",
-        alignment: fullData.biography?.alignment || "neutral",
+        placeOfBirth: fullData.biography?.['place-of-birth'] || '-',
+        firstAppearance: fullData.biography?.['first-appearance'] || '-',
+        publisher: fullData.biography?.publisher || 'Unknown',
+        alignment: fullData.biography?.alignment || 'neutral'
       },
 
       appearance: {
-        gender: fullData.appearance?.gender || "-",
-        race: fullData.appearance?.race || "-",
-        height: fullData.appearance?.height || ["-"],
-        weight: fullData.appearance?.weight || ["-"],
-        eyeColor: fullData.appearance?.["eye-color"] || "-",
-        hairColor: fullData.appearance?.["hair-color"] || "-",
+        gender: fullData.appearance?.gender || '-',
+        race: fullData.appearance?.race || '-',
+        height: fullData.appearance?.height || ['-'],
+        weight: fullData.appearance?.weight || ['-'],
+        eyeColor: fullData.appearance?.['eye-color'] || '-',
+        hairColor: fullData.appearance?.['hair-color'] || '-'
       },
 
       work: {
-        occupation: fullData.work?.occupation || "-",
-        base: fullData.work?.base || "-",
+        occupation: fullData.work?.occupation || '-',
+        base: fullData.work?.base || '-'
       },
 
       connections: {
-        connectedTo: fullData.connections?.["group-affiliation"] || "-",
-        relatives: fullData.connections?.relatives || "-",
-      },
+        connectedTo: fullData.connections?.['group-affiliation'] || '-',
+        relatives: fullData.connections?.relatives || '-'
+      }
     };
 
     res.json({ success: true, data: character });
   } catch (error) {
-    console.error("❌ Error en getCharacterById:", error);
+    console.error('❌ Error en getCharacterById:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -266,5 +255,5 @@ module.exports = {
   getAppearance,
   getWork,
   getConnections,
-  getImage,
+  getImage
 };
