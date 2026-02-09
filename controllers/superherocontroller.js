@@ -269,4 +269,3 @@ module.exports = {
   getConnections,
   getImage
 };
-https://superheroapi.com/api/access-token/character-id/image
