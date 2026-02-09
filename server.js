@@ -1,4 +1,4 @@
-git require("dotenv").config();
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const fetch = require("node-fetch");
@@ -15,6 +15,8 @@ const COMICVINE_BASE = "https://comicvine.gamespot.com/api";
 
 app.use(cors());
 app.use(express.json());
+
+
 
 // ========================================
 // HELPERS
@@ -271,7 +273,7 @@ app.use((req, res) => {
 // ========================================
 // SERVIDOR
 // ========================================
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Backend corriendo en puerto ${PORT}`);
   console.log(
     `✅ Superhero API: ${SUPERHERO_API_KEY ? "Configurada" : "NO configurada"}`,
