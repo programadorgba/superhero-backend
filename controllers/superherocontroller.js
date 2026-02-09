@@ -41,9 +41,9 @@ async function getAllCharacters(req, res) {
             allCharacters.push({
               id: char.id,
               name: char.name,
-              image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
-              publisher: char.biography?.publisher || 'Unknown',
-              alignment: char.biography?.alignment || 'neutral'
+              image: char.image.url,
+              publisher: char.biography.publisher,
+              alignment: char.biography.alignment
             });
           }
         });
@@ -74,13 +74,13 @@ async function searchByName(req, res) {
       return res.status(404).json({ success: false, error: 'Personaje no encontrado' });
     }
 
-    // Mapear con validación - USANDO CDN PARA IMÁGENES
+    // Mapear con validación (?.  evita errores si algo es null/undefined)
     const characters = data.results.map(char => ({
       id: char.id,
       name: char.name,
-      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${char.id}.jpg`,
-      publisher: char.biography?.publisher || 'Unknown',
-      alignment: char.biography?.alignment || 'neutral'
+      image: char.image?.url || '',  // ← CAMBIA ESTO
+      publisher: char.biography?.publisher || 'Unknown',  // ← Y ESTO
+      alignment: char.biography?.alignment || 'neutral'   // ← Y ESTO
     }));
 
     res.json({ success: true, data: characters });
@@ -99,8 +99,22 @@ async function getCharacterById(req, res) {
     const { id } = req.params;
     console.log('👤 Cargando personaje:', id);
 
-    // UNA sola llamada - la API devuelve TODO
-    const fullData = await fetchSuperhero(id);
+    // Llamadas en paralelo para ser rápido
+    const [
+      fullData,
+      powerstats,
+      biography,
+      appearance,
+      work,
+      connections
+    ] = await Promise.all([
+      fetchSuperhero(id),
+      fetchSuperhero(`${id}/powerstats`),
+      fetchSuperhero(`${id}/biography`),
+      fetchSuperhero(`${id}/appearance`),
+      fetchSuperhero(`${id}/work`),
+      fetchSuperhero(`${id}/connections`)
+    ]);
 
     // Validar respuesta principal
     if (!fullData || fullData.response === 'error') {
@@ -111,53 +125,51 @@ async function getCharacterById(req, res) {
       });
     }
 
-    // Combinar todo en un solo objeto limpio - USANDO CDN PARA IMAGEN
+    // Combinar todo en un solo objeto limpio
     const character = {
       id: fullData.id,
       name: fullData.name,
-      image: `https://cdn.jsdelivr.net/gh/akabab/superhero-api@0.3.0/api/images/md/${fullData.id}.jpg`,
+      image: fullData.image?.url || '',
 
       powerstats: {
-        intelligence: fullData.powerstats?.intelligence || 'null',
-        strength: fullData.powerstats?.strength || 'null',
-        speed: fullData.powerstats?.speed || 'null',
-        durability: fullData.powerstats?.durability || 'null',
-        power: fullData.powerstats?.power || 'null',
-        combat: fullData.powerstats?.combat || 'null'
+        intelligence: powerstats.powerstats?.intelligence,
+        strength: powerstats.powerstats?.strength,
+        speed: powerstats.powerstats?.speed,
+        durability: powerstats.powerstats?.durability,
+        power: powerstats.powerstats?.power,
+        combat: powerstats.powerstats?.combat
       },
 
       biography: {
-        realName: fullData.biography?.['full-name'] || '',
-        aliases: fullData.biography?.aliases || [],
-        placeOfBirth: fullData.biography?.['place-of-birth'] || '-',
-        firstAppearance: fullData.biography?.['first-appearance'] || '-',
-        publisher: fullData.biography?.publisher || 'Unknown',
-        alignment: fullData.biography?.alignment || 'neutral'
+        realName: biography.biography?.['real name'],
+        aliases: biography.biography?.aliases,
+        placeOfBirth: biography.biography?.['place of birth'],
+        firstAppearance: biography.biography?.['first appearance'],
+        publisher: biography.biography?.publisher,
+        alignment: biography.biography?.alignment
       },
 
       appearance: {
-        gender: fullData.appearance?.gender || '-',
-        race: fullData.appearance?.race || '-',
-        height: fullData.appearance?.height || ['-'],
-        weight: fullData.appearance?.weight || ['-'],
-        eyeColor: fullData.appearance?.['eye-color'] || '-',
-        hairColor: fullData.appearance?.['hair-color'] || '-'
+        gender: appearance.appearance?.gender,
+        race: appearance.appearance?.race,
+        height: appearance.appearance?.height,
+        weight: appearance.appearance?.weight,
+        eyeColor: appearance.appearance?.['eye color'],
+        hairColor: appearance.appearance?.['hair color']
       },
 
       work: {
-        occupation: fullData.work?.occupation || '-',
-        base: fullData.work?.base || '-'
+        occupation: work.work?.occupation,
+        base: work.work?.base
       },
 
       connections: {
-        connectedTo: fullData.connections?.['group-affiliation'] || '-',
-        relatives: fullData.connections?.relatives || '-'
+        connectedTo: connections.connections?.['connected to']
       }
     };
 
     res.json({ success: true, data: character });
   } catch (error) {
-    console.error('❌ Error en getCharacterById:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 }
@@ -168,7 +180,7 @@ async function getCharacterById(req, res) {
 async function getPowerstats(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${id}/powerstats`);
 
     res.json({ success: true, data: data.powerstats });
   } catch (error) {
@@ -182,7 +194,7 @@ async function getPowerstats(req, res) {
 async function getBiography(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${id}/biography`);
 
     res.json({ success: true, data: data.biography });
   } catch (error) {
@@ -196,7 +208,7 @@ async function getBiography(req, res) {
 async function getAppearance(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${id}/appearance`);
 
     res.json({ success: true, data: data.appearance });
   } catch (error) {
@@ -210,7 +222,7 @@ async function getAppearance(req, res) {
 async function getWork(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${id}/work`);
 
     res.json({ success: true, data: data.work });
   } catch (error) {
@@ -224,7 +236,7 @@ async function getWork(req, res) {
 async function getConnections(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${id}/connections`);
 
     res.json({ success: true, data: data.connections });
   } catch (error) {
@@ -238,7 +250,7 @@ async function getConnections(req, res) {
 async function getImage(req, res) {
   try {
     const { id } = req.params;
-    const data = await fetchSuperhero(id);
+    const data = await fetchSuperhero(`${character-id}/image`);
 
     res.json({ success: true, data: data.image });
   } catch (error) {
@@ -257,3 +269,4 @@ module.exports = {
   getConnections,
   getImage
 };
+https://superheroapi.com/api/access-token/character-id/image
