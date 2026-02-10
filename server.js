@@ -105,19 +105,14 @@ app.get("/api/superhero/search/:name", async (req, res) => {
 // ========================================
 // SUPERHERO - OBTENER POR ID (COMPLETO)
 // ========================================
-app.get("/api/superhero/:id", async (req, res) => {
+app.get("/api/superhero/character/:id", async (req, res) => {
   try {
     const { id } = req.params;
     console.log("👤 Obteniendo personaje:", id);
-
     const data = await fetchSuperhero(id);
-
     if (data.response === "error") {
-      return res
-        .status(404)
-        .json({ success: false, error: "Personaje no encontrado" });
+      return res.status(404).json({ success: false, error: "Personaje no encontrado" });
     }
-
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -205,60 +200,37 @@ app.get("/api/superhero/:id/image", async (req, res) => {
 // ========================================
 // COMICVINE - BUSCAR PERSONAJE
 // ========================================
-app.get("/api/comicvine/character/:name", async (req, res) => {
+app.get("/api/comicvine/character-media/:name", async (req, res) => {
   try {
     const { name } = req.params;
-    console.log("🔍 Buscando en ComicVine:", name);
-
-    const data = await fetchComicVine("search", {
+    console.log("🔍 Buscando medios completos para:", name);
+    // Paso A: Buscar el ID de Comic Vine por nombre
+    const searchData = await fetchComicVine("search", {
       query: name,
       resources: "character",
-      limit: 10,
+      limit: 1,
     });
-
-    res.json({ success: true, data: data.results || [] });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ========================================
-// COMICVINE - COMICS DEL PERSONAJE
-// ========================================
-app.get("/api/comicvine/character/:id/issues", async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log("📚 Obteniendo comics del personaje:", id);
-
-    const data = await fetchComicVine(`character/4005-${id}`, {
-      field_list: "issue_credits",
+    if (!searchData.results || searchData.results.length === 0) {
+      return res.json({ success: true, data: { movies: [], comics: [] } });
+    }
+    const cvId = searchData.results[0].id;
+    // Paso B: Obtener peliculas y comics usando el ID de Comic Vine
+    // Comic Vine permite pedir varios campos en una sola consulta
+    const detailData = await fetchComicVine(`character/4005-${cvId}`, {
+      field_list: "movies,issue_credits",
     });
-
-    const issues = data.results?.issue_credits || [];
-
-    res.json({ success: true, data: issues });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ========================================
-// COMICVINE - PELÍCULAS/APARICIONES
-// ========================================
-app.get("/api/comicvine/character/:id/movies", async (req, res) => {
-  try {
-    const { id } = req.params;
-    console.log("🎬 Obteniendo películas del personaje:", id);
-
-    const data = await fetchComicVine(`character/4005-${id}`, {
-      field_list: "movies",
+    const movies = detailData.results?.movies || [];
+    const comics = detailData.results?.issue_credits || [];
+    res.json({
+      success: true,
+      data: {
+        movies,
+        comics
+      }
     });
-
-    const movies = data.results?.movies || [];
-
-    res.json({ success: true, data: movies });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    console.error("❌ Error en discovery de medios:", error.message);
+    res.status(500).json({ success: false, error: "Error al sincronizar con Comic Vine" });
   }
 });
 
