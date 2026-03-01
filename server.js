@@ -11,12 +11,9 @@ app.use(express.json())
 
 const SUPERHERO_API_KEY = process.env.SUPERHERO_API_KEY || ''
 const COMICVINE_API_KEY = process.env.COMICVINE_API_KEY || ''
-const TMDB_API_KEY      = process.env.TMDB_API_KEY      || ''
 
 const SUPERHERO_BASE = `https://superheroapi.com/api/${SUPERHERO_API_KEY}`
 const COMICVINE_BASE = 'https://comicvine.gamespot.com/api'
-const TMDB_BASE      = 'https://api.themoviedb.org/3'
-const TMDB_IMG       = 'https://image.tmdb.org/t/p/w500'
 
 // ─── Store en memoria ─────────────────────────────────────────────────────────
 const store = {
@@ -37,63 +34,75 @@ async function fetchHero(id) {
   return data
 }
 
-async function fetchComicVine(endpoint, params = {}) {
-  const query = new URLSearchParams({ api_key: COMICVINE_API_KEY, format: 'json', ...params })
-  const res   = await fetch(`${COMICVINE_BASE}/${endpoint}?${query}`, { timeout: 12000 })
-  if (!res.ok) throw new Error(`ComicVine HTTP ${res.status}`)
-  return await res.json()
-}
-
-async function fetchTMDB(endpoint, params = {}) {
-  const query = new URLSearchParams({ api_key: TMDB_API_KEY, language: 'es-ES', ...params })
-  const res   = await fetch(`${TMDB_BASE}/${endpoint}?${query}`, { timeout: 10000 })
-  if (!res.ok) throw new Error(`TMDB HTTP ${res.status}`)
-  return await res.json()
-}
-
-// ─── Busca películas de un personaje en TMDB ──────────────────────────────────
-async function getMoviesFromTMDB(heroName) {
-  if (!TMDB_API_KEY) return []
+// ─── Películas desde Wikipedia ────────────────────────────────────────────────
+async function getMoviesFromWikipedia(heroName) {
   try {
-    // 1. Buscar el personaje en TMDB
-    const search = await fetchTMDB('search/person', { query: heroName })
-    const person = search.results?.[0]
-    if (!person) return []
+    // 1. Buscar la página del personaje en Wikipedia
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(heroName + ' superhero')}&format=json&origin=*&srlimit=1`
+    const searchRes  = await fetch(searchUrl, { timeout: 10000 })
+    const searchData = await searchRes.json()
+    const page       = searchData.query?.search?.[0]
+    if (!page) return []
 
-    // 2. Obtener sus créditos de películas
-    const credits = await fetchTMDB(`person/${person.id}/movie_credits`)
-    const movies  = credits.cast || []
+    // 2. Obtener las secciones de esa página buscando "film" o "filmography"
+    const contentUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvsection=0&titles=${encodeURIComponent(page.title)}&format=json&origin=*`
+    
+    // 3. Buscar películas conocidas con el personaje usando opensearch
+    const filmSearch = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(heroName + ' film')}&limit=8&format=json&origin=*`
+    const filmRes    = await fetch(filmSearch, { timeout: 10000 })
+    const filmData   = await filmRes.json()
 
-    return movies
-      .filter(m => m.poster_path)         // solo las que tienen póster
-      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-      .slice(0, 15)
-      .map(m => ({
-        id:          m.id,
-        title:       m.title,
-        character:   m.character || '',
-        poster:      `${TMDB_IMG}${m.poster_path}`,
-        year:        m.release_date?.split('-')[0] || null,
-        overview:    m.overview || '',
-        voteAverage: m.vote_average || null,
-      }))
+    // filmData = [query, [titles], [descriptions], [urls]]
+    const titles = filmData[1] || []
+    const descs  = filmData[2] || []
+    const urls   = filmData[3] || []
+
+    // 4. Para cada resultado, buscar thumbnail en Wikipedia
+    const movies = await Promise.all(
+      titles.slice(0, 10).map(async (title, i) => {
+        try {
+          const thumbUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=300&format=json&origin=*`
+          const thumbRes  = await fetch(thumbUrl, { timeout: 8000 })
+          const thumbData = await thumbRes.json()
+          const pages     = Object.values(thumbData.query?.pages || {})
+          const thumb     = pages[0]?.thumbnail?.source || null
+
+          // Extraer año del título o descripción
+          const yearMatch = (title + descs[i]).match(/\b(19|20)\d{2}\b/)
+          const year      = yearMatch ? yearMatch[0] : null
+
+          return { title, poster: thumb, year, url: urls[i] }
+        } catch {
+          return { title, poster: null, year: null, url: urls[i] }
+        }
+      })
+    )
+
+    return movies.filter(m => m.title.toLowerCase().includes('film') || 
+                              m.title.toLowerCase().includes('movie') ||
+                              m.title.toLowerCase().includes(heroName.toLowerCase().split(' ')[0]))
   } catch (err) {
-    console.warn(`[TMDB] ${heroName}:`, err.message)
+    console.warn(`[Wikipedia] ${heroName}:`, err.message)
     return []
   }
 }
 
-// ─── Busca comics en ComicVine ────────────────────────────────────────────────
+// ─── Cómics desde ComicVine ───────────────────────────────────────────────────
 async function getComicsFromComicVine(heroName) {
   if (!COMICVINE_API_KEY) return []
   try {
-    const cvSearch = await fetchComicVine('search', {
+    const query = new URLSearchParams({
+      api_key:    COMICVINE_API_KEY,
+      format:     'json',
       query:      heroName,
       resources:  'character',
       limit:      1,
       field_list: 'id,name,issue_credits',
     })
-    const cvChar = cvSearch.results?.[0]
+    const res  = await fetch(`${COMICVINE_BASE}/search?${query}`, { timeout: 12000 })
+    if (!res.ok) throw new Error(`ComicVine HTTP ${res.status}`)
+    const data   = await res.json()
+    const cvChar = data.results?.[0]
     if (!cvChar) return []
 
     return (cvChar.issue_credits || []).slice(0, 20).map(c => ({
@@ -107,7 +116,7 @@ async function getComicsFromComicVine(heroName) {
   }
 }
 
-// ─── Normaliza conservando TODO lo que devuelve SuperheroAPI ─────────────────
+// ─── Normaliza ────────────────────────────────────────────────────────────────
 function normalizeHero(raw) {
   return {
     id:        raw.id,
@@ -115,7 +124,6 @@ function normalizeHero(raw) {
     image:     raw.image?.url || null,
     publisher: raw.biography?.publisher || 'Unknown',
     alignment: raw.biography?.alignment || 'neutral',
-
     powerstats: {
       intelligence: raw.powerstats?.intelligence || '0',
       strength:     raw.powerstats?.strength     || '0',
@@ -124,7 +132,6 @@ function normalizeHero(raw) {
       power:        raw.powerstats?.power        || '0',
       combat:       raw.powerstats?.combat       || '0',
     },
-
     biography: {
       fullName:        raw.biography?.['full-name']        || '',
       alterEgos:       raw.biography?.['alter-egos']       || '',
@@ -134,7 +141,6 @@ function normalizeHero(raw) {
       publisher:       raw.biography?.publisher            || '',
       alignment:       raw.biography?.alignment            || '',
     },
-
     appearance: {
       gender:    raw.appearance?.gender         || '',
       race:      raw.appearance?.race           || '',
@@ -143,12 +149,10 @@ function normalizeHero(raw) {
       eyeColor:  raw.appearance?.['eye-color']  || '',
       hairColor: raw.appearance?.['hair-color'] || '',
     },
-
     work: {
       occupation: raw.work?.occupation || '',
       base:       raw.work?.base       || '',
     },
-
     connections: {
       groupAffiliation: raw.connections?.['group-affiliation'] || '',
       relatives:        raw.connections?.relatives             || '',
@@ -170,7 +174,7 @@ async function loadAllHeroes() {
     const batch = await Promise.allSettled(ids.map(fetchHero))
     for (const result of batch) {
       if (result.status === 'fulfilled') {
-        try { store.heroes.push(normalizeHero(result.value)) } catch { /* skip */ }
+        try { store.heroes.push(normalizeHero(result.value)) } catch {}
       }
     }
     if (i % 100 === 1) console.log(`[Superhero] ${store.heroes.length}/${TOTAL}...`)
@@ -189,48 +193,43 @@ async function ensureLoaded(req, res, next) {
   if (!store.loading) loadAllHeroes()
   let attempts = 0
   while (!store.loaded && attempts < 600) { await sleep(500); attempts++ }
-  if (!store.loaded) return res.status(503).json({ error: 'Datos aún cargando, intenta en unos segundos' })
+  if (!store.loaded) return res.status(503).json({ error: 'Datos aún cargando' })
   next()
 }
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
-
-// Lista completa
 app.get('/api/universe', ensureLoaded, (req, res) => {
   res.json({ heroes: store.heroes, publishers: store.publishers })
 })
 
-// Detalle: héroe + comics (ComicVine) + películas (TMDB) en paralelo
 app.get('/api/superhero/:id', ensureLoaded, async (req, res) => {
   const hero = store.heroes.find(h => h.id === req.params.id)
   if (!hero) return res.status(404).json({ error: 'Personaje no encontrado' })
 
   const [comics, movies] = await Promise.all([
     getComicsFromComicVine(hero.name),
-    getMoviesFromTMDB(hero.name),
+    getMoviesFromWikipedia(hero.name),
   ])
 
   res.json({ ...hero, comics, movies })
 })
 
-// Status
 app.get('/api/status', (req, res) => {
   res.json({
     loaded: store.loaded, loading: store.loading,
-    heroes: store.heroes.length, publishers: store.publishers.length,
+    heroes: store.heroes.length,
     apis: {
       superhero: !!SUPERHERO_API_KEY,
       comicvine: !!COMICVINE_API_KEY,
-      tmdb:      !!TMDB_API_KEY,
+      wikipedia: true,
     }
   })
 })
 
-// ─── Arranque ─────────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Superhero] Puerto ${PORT}`)
   console.log(`  Superhero API : ${SUPERHERO_API_KEY ? '✅' : '❌'}`)
   console.log(`  ComicVine API : ${COMICVINE_API_KEY ? '✅' : '❌'}`)
-  console.log(`  TMDB API      : ${TMDB_API_KEY      ? '✅' : '❌'}`)
+  console.log(`  Wikipedia     : ✅ (sin key)`)
   loadAllHeroes()
 })
